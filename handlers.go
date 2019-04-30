@@ -4,7 +4,7 @@ import(
 	"fmt"
 	"net/http"
 
-	"./post"
+	"github.com/jecolon/post"
 )
 
 // postsHandler selecciona un HandlerFunc basado en el verbo HTTP.
