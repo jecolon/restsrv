@@ -12,10 +12,10 @@ import (
 	"github.com/jecolon/post"
 )
 
-// Lanzamos monitor goroutine para el map de posts.
-var postRequests = post.Monitor()
-
 func init() {
+	// Lanzamos monitor goroutine para posts.
+	post.Monitor()
+
 	// Creamos 10 posts para empezar.
 	for i := 1; i <= 10; i++ {
 		post.Add(post.Post{
@@ -84,7 +84,7 @@ func main() {
 
 	// Esperamos a que el shut down termine al cerrar todas las conexiones.
 	<-conxCerradas
-	// Al cerrar este canal, la goroutine monitor puede terminar.
-	close(postRequests)
+	// Detenemos la monitor goroutine de posts.
+	post.Stop()
 	fmt.Println("Shut down del servidor HTTPS completado exitosamente.")
 }
