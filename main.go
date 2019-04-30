@@ -14,7 +14,7 @@ import (
 
 func init() {
 	// Lanzamos monitor goroutine para posts.
-	post.Monitor()
+	post.Start()
 
 	// Creamos 10 posts para empezar.
 	for i := 1; i <= 10; i++ {
