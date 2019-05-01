@@ -1,3 +1,5 @@
+// restsrv is a sample REST API server for posts provided by the post package at
+// https://github.com/jecolon/post.
 package main
 
 import (
