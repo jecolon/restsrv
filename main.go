@@ -13,9 +13,6 @@ import (
 )
 
 func init() {
-	// Lanzamos monitor goroutine para posts.
-	post.Start()
-
 	// Creamos 10 posts para empezar.
 	for i := 1; i <= 10; i++ {
 		post.Add(post.Post{
@@ -39,6 +36,8 @@ func main() {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1 MiB
 	}
+	// Aseguramos limpiar los recursos usados por el paquete post al hacer Shutdown.
+	srv.RegisterOnShutdown(post.Shutdown)
 
 	// Definimos rutas.
 	webroot := "webroot"
@@ -84,7 +83,5 @@ func main() {
 
 	// Esperamos a que el shut down termine al cerrar todas las conexiones.
 	<-conxCerradas
-	// Detenemos la monitor goroutine de posts.
-	post.Stop()
 	fmt.Println("Shut down del servidor HTTPS completado exitosamente.")
 }
