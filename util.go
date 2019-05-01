@@ -1,37 +1,54 @@
 package main
 
-import(
+import (
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/jecolon/post"
 )
 
-// Obtenemos el ID de un post del http.Request.
-func idFromRequest(r *http.Request) (id int, err error) {
-	// Convertimos el id de string a int64 y lo validamos
+// postFromRequest obtiene el post solicitado en el http.Request. Si no existe,
+// se envía error al cliente y devuelve un error, en cuyo caso p no se debe usar.
+func postFromRequest(w http.ResponseWriter, r *http.Request, p *post.Post) error {
+	// Convertimos el id a int.
 	id64, err := strconv.ParseInt(r.URL.Path, 10, 64)
-	id = int(id64) // strconv devuelve int64, queremos int
+	id := int(id64) // strconv devuelve int64, queremos int
 	if err != nil {
-		return -1, fmt.Errorf("ID del post inválido: %s", r.URL.Path)
+		err = fmt.Errorf("ID del post inválido: %s", r.URL.Path)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return err
 	}
 
-	return id, nil
+	// Buscamos el post.
+	var ok bool
+	if *p, ok = post.Get(id); !ok {
+		// No encontramos ese ID
+		err = fmt.Errorf("ID no encontrado: %d", id)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return err
+	}
+
+	return nil
 }
 
-// Recibimos JSON en el body del http.Request
-func recibeJSON(r *http.Request, x interface{}) error {
-	err := json.NewDecoder(r.Body).Decode(x)
+// fromJSON descodifica JSON del http.Request.Body. Si ocurre un error,
+// se envía error al cliente y se devuelve un error, en cuyo caso x no se debe usar.
+func fromJSON(w http.ResponseWriter, r *http.Request, p *post.Post) error {
+	err := json.NewDecoder(r.Body).Decode(p)
 	r.Body.Close()
 	if err != nil {
-		log.Printf("recibeJSON para %v: %v", x, err)
+		log.Printf("fromJSON de %v: %v", *p, err)
+		http.Error(w, "Error en formato JSON", http.StatusBadRequest)
+		return err
 	}
 	return nil
 }
 
-// Enviamos la respuesta codificada como JSON
-func envíaJSON(w http.ResponseWriter, x interface{}) {
+// sendJSON envía la respuesta codificada como JSON.
+func sendJSON(w http.ResponseWriter, x interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "\t") // Opcional. Formato legible para humanos.

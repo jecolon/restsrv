@@ -1,7 +1,6 @@
 package main
 
-import(
-	"fmt"
+import (
 	"net/http"
 
 	"github.com/jecolon/post"
@@ -26,7 +25,7 @@ func postsHandler(w http.ResponseWriter, r *http.Request) {
 // listPosts envía un listado de todos los posts.
 func listPosts(w http.ResponseWriter, r *http.Request) {
 	// Enviamos respuesta codificada como JSON
-	envíaJSON(w, post.List())
+	sendJSON(w, post.List())
 }
 
 // getPost envía un post seún el ID del Request.
@@ -36,86 +35,60 @@ func getPost(w http.ResponseWriter, r *http.Request) {
 		listPosts(w, r)
 		return
 	}
-	// Obtenemos ID.
-	id, err := idFromRequest(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	// Buscamos el post
-	p, ok := post.Get(id)
-	if !ok {
-		// No encontramos ese ID
-		http.Error(w, fmt.Sprintf("ID no encontrado: %d", id), http.StatusNotFound)
-		return
+	// Obtenemos el post.
+	var p post.Post
+	if err := postFromRequest(w, r, &p); err != nil {
+		return // Ya postFromRequest envío error al cliente.
 	}
 	// Enviamos respuesta codificada como JSON
-	envíaJSON(w, p)
+	sendJSON(w, p)
 }
 
 // addPost crea un Post con los campos según el Request.Body en formato JSON.
 func addPost(w http.ResponseWriter, r *http.Request) {
 	// Recibimos el post como JSON y descodificamos
 	var p post.Post
-	err := recibeJSON(r, &p)
-	if err != nil {
-		http.Error(w, "Error en formato JSON", http.StatusBadRequest)
-		return
+	if err := fromJSON(w, r, &p); err != nil {
+		return // Ya fromJSON evió error al cliente.
 	}
 	// Asignamos nuevo ID único.
 	p.Id = post.NewId()
 	// Guardamos el post.
 	post.Add(p)
 	// Enviamos resultado codificado en JSON
-	envíaJSON(w, p)
+	sendJSON(w, p)
 }
 
 // setPost actualiza un Post con los campos según el Request.Body en formato JSON.
 func setPost(w http.ResponseWriter, r *http.Request) {
-	// Obtenemos el ID
-	id, err := idFromRequest(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	// Verificamos que el post existe.
-	if _, ok := post.Get(id); !ok {
-		// No encontramos ese ID
-		http.Error(w, fmt.Sprintf("ID no encontrado: %d", id), http.StatusNotFound)
-		return
-	}
-	// Recibimos campos actualizados como JSON y descodificamos
 	var p post.Post
-	err = recibeJSON(r, &p)
-	if err != nil {
-		http.Error(w, "Error en formato JSON", http.StatusBadRequest)
-		return
+	if err := postFromRequest(w, r, &p); err != nil {
+		return // Ya postFromRequest envío error al cliente.
+	}
+	// Guardamos id origianl
+	id := p.Id
+	// Descodificamos JSON para obtener campos actualizados.
+	if err := fromJSON(w, r, &p); err != nil {
+		return // Ya fromJSON envío error al cliente.
 	}
 	// Asignamos ID original para evitar cambiar otro post.
 	p.Id = id
-	// Actualizamod el post.
+	// Actualizamos el post.
 	post.Set(p)
 	// Enviamos respuesta codificada como JSON
-	envíaJSON(w, p)
+	sendJSON(w, p)
 }
 
 // delPost borra un Post según el ID del Request.
 func delPost(w http.ResponseWriter, r *http.Request) {
-	// Obtenemos el ID
-	id, err := idFromRequest(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	// Verificamos que el post existe.
-	if _, ok := post.Get(id); !ok {
-		// No encontramos ese ID
-		http.Error(w, fmt.Sprintf("ID no encontrado: %d", id), http.StatusNotFound)
-		return
+	var p post.Post
+	if err := postFromRequest(w, r, &p); err != nil {
+		return // Ya postFromRequest envío error al cliente.
 	}
 	// Borramos el post.
-	post.Del(id)
+	post.Del(p.Id)
 	// Enviamos objeto JSON vacío, señalando que se borró.
-	envíaJSON(w, struct{}{})
+	sendJSON(w, struct{}{})
 }
-

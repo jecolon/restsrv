@@ -47,29 +47,8 @@ func main() {
 
 	// Canal para señalar conexiones inactivas cerradas.
 	conxCerradas := make(chan struct{})
-
-	// goroutine para detectar señales de interrupción al proceso. (CTRL+C)
-	go func() {
-		// Canal para recibir señal de interrupción.
-		sigint := make(chan os.Signal, 1)
-		// Escuchamos por una señal de interrupción del OS (SIGINT).
-		signal.Notify(sigint, os.Interrupt)
-		<-sigint
-
-		// Si llegamos aquí, recibimos la señal, iniciamos shut down.
-		// Noten se puede usar un Context para posible límite de tiempo.
-		fmt.Println("\nShut down del servidor HTTPS iniciado...")
-		// Límite de tiempo para el Shutdown
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
-			// Error aquí tiene que ser cerrando conexiones.
-			log.Printf("Error durante Shutdown: %v", err)
-		}
-
-		// Cerramos el canal, señalando conexiones ya cerradas.
-		close(conxCerradas)
-	}()
+	// Lanzamos goroutine para esperar señal y llamar Shutdown.
+	go waitForShutdown(conxCerradas, srv)
 
 	// Lanzamos el Server y estamos pendientes por si hay shut down.
 	fmt.Printf("Servidor HTTPS en puerto %s listo. CTRL+C para detener.\n", puerto)
@@ -84,4 +63,27 @@ func main() {
 	// Esperamos a que el shut down termine al cerrar todas las conexiones.
 	<-conxCerradas
 	fmt.Println("Shut down del servidor HTTPS completado exitosamente.")
+}
+
+// waitForShutdown para detectar señales de interrupción al proceso y hacer Shutdown.
+func waitForShutdown(conxCerradas chan struct{}, srv *http.Server) {
+	// Canal para recibir señal de interrupción.
+	sigint := make(chan os.Signal, 1)
+	// Escuchamos por una señal de interrupción del OS (SIGINT).
+	signal.Notify(sigint, os.Interrupt)
+	<-sigint
+
+	// Si llegamos aquí, recibimos la señal, iniciamos shut down.
+	// Noten se puede usar un Context para posible límite de tiempo.
+	fmt.Println("\nShut down del servidor HTTPS iniciado...")
+	// Límite de tiempo para el Shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		// Error aquí tiene que ser cerrando conexiones.
+		log.Printf("Error durante Shutdown: %v", err)
+	}
+
+	// Cerramos el canal, señalando conexiones ya cerradas.
+	close(conxCerradas)
 }
