@@ -36,7 +36,7 @@ func postFromRequest(w http.ResponseWriter, r *http.Request, p *post.Post) error
 
 // fromJSON descodifica JSON del http.Request.Body. Si ocurre un error,
 // se envía error al cliente y se devuelve un error, en cuyo caso x no se debe usar.
-func fromJSON(w http.ResponseWriter, r *http.Request, p *post.Post) error {
+func postFromJSON(w http.ResponseWriter, r *http.Request, p *post.Post) error {
 	err := json.NewDecoder(r.Body).Decode(p)
 	r.Body.Close()
 	if err != nil {

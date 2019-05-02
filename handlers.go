@@ -48,7 +48,7 @@ func getPost(w http.ResponseWriter, r *http.Request) {
 func addPost(w http.ResponseWriter, r *http.Request) {
 	// Recibimos el post como JSON y descodificamos
 	var p post.Post
-	if err := fromJSON(w, r, &p); err != nil {
+	if err := postFromJSON(w, r, &p); err != nil {
 		return // Ya fromJSON evió error al cliente.
 	}
 	// Asignamos nuevo ID único.
@@ -69,7 +69,7 @@ func setPost(w http.ResponseWriter, r *http.Request) {
 	// Guardamos id origianl
 	id := p.Id
 	// Descodificamos JSON para obtener campos actualizados.
-	if err := fromJSON(w, r, &p); err != nil {
+	if err := postFromJSON(w, r, &p); err != nil {
 		return // Ya fromJSON envío error al cliente.
 	}
 	// Asignamos ID original para evitar cambiar otro post.
