@@ -17,7 +17,7 @@ import (
 func init() {
 	// Creamos 10 posts para empezar.
 	for i := 1; i <= 10; i++ {
-		post.Add(post.Post{
+		post.New(post.Post{
 			Id:     post.NewId(),
 			UserId: 1,
 			Title:  "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",

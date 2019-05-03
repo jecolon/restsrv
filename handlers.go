@@ -12,9 +12,9 @@ func postsHandler(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		getPost(w, r)
 	case "POST":
-		addPost(w, r)
+		newPost(w, r)
 	case "PUT":
-		setPost(w, r)
+		putPost(w, r)
 	case "DELETE":
 		delPost(w, r)
 	default:
@@ -44,8 +44,8 @@ func getPost(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, p)
 }
 
-// addPost crea un Post con los campos según el Request.Body en formato JSON.
-func addPost(w http.ResponseWriter, r *http.Request) {
+// newPost crea un Post con los campos según el Request.Body en formato JSON.
+func newPost(w http.ResponseWriter, r *http.Request) {
 	// Recibimos el post como JSON y descodificamos
 	var p post.Post
 	if err := postFromJSON(w, r, &p); err != nil {
@@ -54,13 +54,13 @@ func addPost(w http.ResponseWriter, r *http.Request) {
 	// Asignamos nuevo ID único.
 	p.Id = post.NewId()
 	// Guardamos el post.
-	post.Add(p)
+	post.New(p)
 	// Enviamos resultado codificado en JSON
 	sendJSON(w, p)
 }
 
-// setPost actualiza un Post con los campos según el Request.Body en formato JSON.
-func setPost(w http.ResponseWriter, r *http.Request) {
+// putPost actualiza un Post con los campos según el Request.Body en formato JSON.
+func putPost(w http.ResponseWriter, r *http.Request) {
 	// Verificamos que el post existe.
 	var p post.Post
 	if err := postFromRequest(w, r, &p); err != nil {
@@ -75,7 +75,7 @@ func setPost(w http.ResponseWriter, r *http.Request) {
 	// Asignamos ID original para evitar cambiar otro post.
 	p.Id = id
 	// Actualizamos el post.
-	post.Set(p)
+	post.Put(p)
 	// Enviamos respuesta codificada como JSON
 	sendJSON(w, p)
 }
