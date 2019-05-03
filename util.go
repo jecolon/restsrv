@@ -15,12 +15,13 @@ import (
 func postFromRequest(w http.ResponseWriter, r *http.Request, p *post.Post) error {
 	// Convertimos el id a int.
 	id64, err := strconv.ParseInt(r.URL.Path, 10, 64)
-	id := int(id64) // strconv devuelve int64, queremos int
 	if err != nil {
 		err = fmt.Errorf("ID del post inválido: %s", r.URL.Path)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
+	// strconv devuelve int64, queremos int
+	id := int(id64) 
 
 	// Buscamos el post.
 	var ok bool
@@ -34,13 +35,13 @@ func postFromRequest(w http.ResponseWriter, r *http.Request, p *post.Post) error
 	return nil
 }
 
-// fromJSON descodifica JSON del http.Request.Body. Si ocurre un error,
+// postFromJSON descodifica JSON del http.Request.Body. Si ocurre un error,
 // se envía error al cliente y se devuelve un error, en cuyo caso x no se debe usar.
 func postFromJSON(w http.ResponseWriter, r *http.Request, p *post.Post) error {
 	err := json.NewDecoder(r.Body).Decode(p)
 	r.Body.Close()
 	if err != nil {
-		log.Printf("fromJSON de %v: %v", *p, err)
+		log.Printf("postFromJSON de %v: %v", *p, err)
 		http.Error(w, "Error en formato JSON", http.StatusBadRequest)
 		return err
 	}
@@ -54,7 +55,7 @@ func sendJSON(w http.ResponseWriter, x interface{}) {
 	enc.SetIndent("", "\t") // Opcional. Formato legible para humanos.
 	err := enc.Encode(x)
 	if err != nil {
-		log.Printf("enviaJSON de %v: %v", x, err)
+		log.Printf("sendJSON de %v: %v", x, err)
 		http.Error(w, "Error en formato JSON", http.StatusInternalServerError)
 	}
 }
