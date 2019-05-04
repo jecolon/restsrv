@@ -18,7 +18,6 @@ func init() {
 	// Creamos 10 posts para empezar.
 	for i := 1; i <= 10; i++ {
 		post.New(post.Post{
-			Id:     post.NewId(),
 			UserId: 1,
 			Title:  "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",
 			Body:   "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nrepre",

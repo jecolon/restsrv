@@ -51,10 +51,8 @@ func newPost(w http.ResponseWriter, r *http.Request) {
 	if err := postFromJSON(w, r, &p); err != nil {
 		return // Ya fromJSON evió error al cliente.
 	}
-	// Asignamos nuevo ID único.
-	p.Id = post.NewId()
 	// Guardamos el post.
-	post.New(p)
+	p = post.New(p)[0]
 	// Enviamos resultado codificado en JSON
 	sendJSON(w, p)
 }
