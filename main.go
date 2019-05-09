@@ -47,8 +47,10 @@ func main() {
 
 	// Definimos rutas.
 	http.Handle("/", http.FileServer(http.Dir(*webroot)))
-	http.Handle("/api/v1/posts", http.StripPrefix("/api/v1/posts", http.HandlerFunc(postsHandler)))
-	http.Handle("/api/v1/posts/", http.StripPrefix("/api/v1/posts/", http.HandlerFunc(postsHandler)))
+	http.HandleFunc("/token", tokenHandler)
+	phf := http.HandlerFunc(postsHandler)
+	http.Handle("/api/v1/posts", http.StripPrefix("/api/v1/posts", authWrapper(phf)))
+	http.Handle("/api/v1/posts/", http.StripPrefix("/api/v1/posts/", authWrapper(phf)))
 
 	// Canal para señalar conexiones inactivas cerradas.
 	conxCerradas := make(chan struct{})
