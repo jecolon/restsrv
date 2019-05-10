@@ -14,18 +14,19 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
+// User es un usuario del REST API
 type User struct {
 	Name  string
 	Pwd   string
 	Roles map[string]bool // conjunto de roles
 }
 
-// Almacén global de usuarios. Solo para leer, seguro para acceso por múltiples goroutines.
+// Almacén global de usuarios.
 var users map[string]User
+
 // private y public key para funciones crypto.
 var privateKey *rsa.PrivateKey
 var publicKey *rsa.PublicKey
-
 
 func init() {
 	// Generamos public/private keys
@@ -69,8 +70,8 @@ func getToken(uname, pwd string) (string, error) {
 	}
 	// Creamos los claims con expiración de 1 minuto
 	cl := jwt.Claims{
-		Subject: "uname",
-		Issuer:  "https://josecolon.dev",
+		Subject: uname,
+		Issuer:  "Dude the Builder",
 		Expiry:  jwt.NewNumericDate(time.Now().Add(60 * time.Second)),
 	}
 	// Creamos el JWE incluyendo claims y el usuario
@@ -85,47 +86,50 @@ func getToken(uname, pwd string) (string, error) {
 
 // tokenHandler produce un JWE si los credenciales son correctos.
 func tokenHandler(w http.ResponseWriter, r *http.Request) {
+	// Obtenemos el JWE si los credenciales son válidos.
 	token, err := getToken(r.FormValue("username"), r.FormValue("password"))
 	if err != nil {
 		log.Printf("tokenHandler: %v", err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-
+	// Enviamos el JWE
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	io.WriteString(w, token)
 }
 
 // verifyToken valida un JWE y devuelve los roles del usuario si la validación es exitosa.
 func verifyToken(jwe string) (map[string]bool, error) {
+	// Leemos el JWE
 	tok, err := jwt.ParseSignedAndEncrypted(jwe)
 	if err != nil {
 		return nil, err
 	}
-
-	nested, err := tok.Decrypt(privateKey)
+	// Desciframos el JWE, obteniendo el JWS anidado.
+	jws, err := tok.Decrypt(privateKey)
 	if err != nil {
 		return nil, err
 	}
-
+	// Extraemos los claims y el usuario del JWS.
 	cl := jwt.Claims{}
 	u := User{}
-	if err := nested.Claims(publicKey, &cl, &u); err != nil {
+	if err := jws.Claims(publicKey, &cl, &u); err != nil {
 		return nil, err
 	}
-
+	// Validamos si el JWS no ha expirado.
 	err = cl.Validate(jwt.Expected{
 		Time: time.Now(),
 	})
 	if err != nil {
 		return nil, err
 	}
-
+	// Devolvemos los roles del usuario para determinar niveles de autorización.
 	return u.Roles, nil
 }
 
 // authWrapper envuelve un Handler en otro Handler que maneja autorización.
 func authWrapper(h http.Handler) http.Handler {
+	// Usamos un literal de función convertida a http.HandlerFunc
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Libre acceso a GET y LIST
 		if r.Method == "GET" {
@@ -145,25 +149,25 @@ func authWrapper(h http.Handler) http.Handler {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		// Admins pueden hacer de todo
-		if _, ok := roles["Admin"]; ok {
+		// Admins pueden acceso total.
+		if roles["Admin"] {
 			h.ServeHTTP(w, r)
 			return
 		}
-		// Actuamos según el Method y el rol.
+		// Autorización según el método y roles.
 		switch r.Method {
 		case "POST":
-			if _, ok := roles["Add"]; !ok {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			if roles["Add"] {
+				h.ServeHTTP(w, r)
 				return
 			}
 		case "PUT", "DELETE":
-			if _, ok := roles["Edit"]; !ok {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			if roles["Edit"] {
+				h.ServeHTTP(w, r)
 				return
 			}
 		}
-		// Rol adecuado existe, procedemos
-		h.ServeHTTP(w, r)
+		// Combinación de roles y métodos inválida, acceso denegado.
+		http.Error(w, "Acceso denegado", http.StatusUnauthorized)
 	})
 }

@@ -21,7 +21,7 @@ func postFromRequest(w http.ResponseWriter, r *http.Request, p *post.Post) error
 		return err
 	}
 	// strconv devuelve int64, queremos int
-	id := int(id64) 
+	id := int(id64)
 
 	// Buscamos el post.
 	var ok bool
