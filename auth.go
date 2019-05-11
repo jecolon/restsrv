@@ -24,20 +24,8 @@ type User struct {
 // Almacén global de usuarios.
 var users map[string]User
 
-// private y public key para funciones crypto.
-var privateKey *rsa.PrivateKey
-var publicKey *rsa.PublicKey
-
-func init() {
-	// Generamos public/private keys
-	var err error
-	privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		log.Fatalf("Generando crypto keys: %v", err)
-	}
-	publicKey = &privateKey.PublicKey
-
-	// Creamos usuarios de prueba
+// initUsers crea usuarios de prueba
+func initUsers() {
 	users = map[string]User{
 		"u0": {"u0", "u0", map[string]bool{"Admin": true}},
 		"u1": {"u1", "u1", map[string]bool{"Edit": true}},
@@ -45,16 +33,39 @@ func init() {
 	}
 }
 
-// getToken obtiene un JWE si los credenciales son correctos.
-func getToken(uname, pwd string) (string, error) {
+// private y public key para funciones crypto.
+var privateKey *rsa.PrivateKey
+var publicKey *rsa.PublicKey
+
+// initKeys genera public/private keys
+func initKeys() {
+	var err error
+	privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("Generando crypto keys: %v", err)
+	}
+	publicKey = &privateKey.PublicKey
+}
+
+func init() {
+	initKeys()
+	initUsers()
+}
+
+var errUserNotFound = fmt.Errorf("no existe el usuario")
+var errBadPassword = fmt.Errorf("contraseña incorrecta")
+
+// getToken obtiene un JWE si los credenciales son correctos. El JWE expira en
+// el periodo de tiempo especificado por exp.
+func getToken(uname, pwd string, exp time.Duration) (string, error) {
 	// Obtenemos usuario
 	u, ok := users[uname]
 	if !ok {
-		return "", fmt.Errorf("no existe el usuario: %s", uname)
+		return "", errUserNotFound
 	}
 	// Verificamos contraseña
 	if u.Pwd != pwd {
-		return "", fmt.Errorf("contraseña incorrecta")
+		return "", errBadPassword
 	}
 	// Creamos un  signer usando RSASSA-PSS (SHA512) con el private key.
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.PS512, Key: privateKey}, nil)
@@ -72,7 +83,7 @@ func getToken(uname, pwd string) (string, error) {
 	cl := jwt.Claims{
 		Subject: uname,
 		Issuer:  "Dude the Builder",
-		Expiry:  jwt.NewNumericDate(time.Now().Add(60 * time.Second)),
+		Expiry:  jwt.NewNumericDate(time.Now().Add(exp)),
 	}
 	// Creamos el JWE incluyendo claims y el usuario
 	jwe, err := jwt.SignedAndEncrypted(signer, encrypter).Claims(cl).Claims(u).CompactSerialize()
@@ -87,7 +98,7 @@ func getToken(uname, pwd string) (string, error) {
 // tokenHandler produce un JWE si los credenciales son correctos.
 func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	// Obtenemos el JWE si los credenciales son válidos.
-	token, err := getToken(r.FormValue("username"), r.FormValue("password"))
+	token, err := getToken(r.FormValue("username"), r.FormValue("password"), 1 * time.Minute)
 	if err != nil {
 		log.Printf("tokenHandler: %v", err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -140,7 +151,7 @@ func authWrapper(h http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 {
-			http.Error(w, "Invalid Authorization header", http.StatusUnauthorized)
+			http.Error(w, "Header Authorization inválido", http.StatusBadRequest)
 			return
 		}
 		// Verificamos JWE y extraemos roles
