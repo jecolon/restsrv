@@ -111,7 +111,7 @@ func TestPostsHandler(t *testing.T) {
 		r.Header.Set("Authorization", "Bearer "+tok)
 		w := httptest.NewRecorder()
 		h := http.StripPrefix("/api/v1/posts/", authWrapper(http.HandlerFunc(postsHandler)))
-		authWrapper(h).ServeHTTP(w, r)
+		h.ServeHTTP(w, r)
 
 		resp := w.Result()
 		//body, _ := ioutil.ReadAll(resp.Body)
