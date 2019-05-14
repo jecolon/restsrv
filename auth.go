@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	jose "gopkg.in/square/go-jose.v2"
@@ -21,6 +22,8 @@ type User struct {
 	Roles map[string]bool // conjunto de roles
 }
 
+// userOnce es para iniciar el almacén de usuarios solo la primera vez.
+var usersOnce sync.Once
 // Almacén global de usuarios.
 var users map[string]User
 
@@ -36,10 +39,15 @@ func initUsers() {
 // private y public key para funciones crypto.
 var privateKey *rsa.PrivateKey
 var publicKey *rsa.PublicKey
+// keysOnce es para iniciar los keys solo la primera vez.
+var keysOnce sync.Once
 
 // initKeys genera public/private keys
 func initKeys() {
 	var err error
+	// En un ambiente en producción, estos keys se almacenarían con estricta seguridad
+	// en el servidor, para poder cifrar y descifrar los tokens aun cuando el server
+	// ha sido reiniciado.
 	privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatalf("Generando crypto keys: %v", err)
@@ -47,44 +55,49 @@ func initKeys() {
 	publicKey = &privateKey.PublicKey
 }
 
-func init() {
-	initKeys()
-	initUsers()
-}
-
+// Errores relacionados a credenciales de usuarios.
 var errUserNotFound = fmt.Errorf("no existe el usuario")
 var errBadPassword = fmt.Errorf("contraseña incorrecta")
 
 // getToken obtiene un JWE si los credenciales son correctos. El JWE expira en
 // el periodo de tiempo especificado por exp.
 func getToken(uname, pwd string, exp time.Duration) (string, error) {
+	// Iniciamos usuarios y keys solo la primera vez.
+	usersOnce.Do(initUsers)
+	keysOnce.Do(initKeys)
 	// Obtenemos usuario
 	u, ok := users[uname]
 	if !ok {
+		// Usuario no encontrado
 		return "", errUserNotFound
 	}
 	// Verificamos contraseña
 	if u.Pwd != pwd {
+		// Contraseña incorrecta
 		return "", errBadPassword
 	}
-	// Creamos un  signer usando RSASSA-PSS (SHA512) con el private key.
+	// Creamos un  signer usando RSASSA-PSS (SHA512) con el private key. Esto es 
+	// para firmar el token, no para cifrarlo.
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.PS512, Key: privateKey}, nil)
 	if err != nil {
 		return "", err
 	}
-	// Creamos un encrypter
+	// Creamos un encrypter para cifrar el token.
 	encrypter, err := jose.NewEncrypter(jose.A128GCM,
 		jose.Recipient{Algorithm: jose.RSA_OAEP, Key: publicKey},
 		(&jose.EncrypterOptions{}).WithType("JWT").WithContentType("JWT"))
 	if err != nil {
 		return "", err
 	}
-	// Creamos los claims con expiración de 1 minuto
+	// Creamos los claims 
 	cl := jwt.Claims{
 		Subject: uname,
 		Issuer:  "Dude the Builder",
+		// Expiración de 1 minuto
 		Expiry:  jwt.NewNumericDate(time.Now().Add(exp)),
 	}
+	// A pesar que el token estará cifrado, no enviaremos la contraseña del usuario.
+	u.Pwd = ""
 	// Creamos el JWE incluyendo claims y el usuario
 	jwe, err := jwt.SignedAndEncrypted(signer, encrypter).Claims(cl).Claims(u).CompactSerialize()
 	if err != nil {
@@ -111,6 +124,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 
 // verifyToken valida un JWE y devuelve los roles del usuario si la validación es exitosa.
 func verifyToken(jwe string) (map[string]bool, error) {
+	keysOnce.Do(initKeys)
 	// Leemos el JWE
 	tok, err := jwt.ParseSignedAndEncrypted(jwe)
 	if err != nil {

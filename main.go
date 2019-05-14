@@ -19,7 +19,7 @@ var puerto = flag.String("p", ":8443", "Dirección IP y puerto")
 var dev = flag.Bool("d", false, "Modo de desarrollo local")
 var webroot = flag.String("w", "webroot", "Directorio raíz del servidor de archivos")
 
-func init() {
+func initPosts() {
 	// Creamos 10 posts para empezar.
 	for i := 1; i <= 10; i++ {
 		post.New(post.Post{
@@ -31,6 +31,7 @@ func init() {
 }
 
 func main() {
+	initPosts()
 	// Opciones de la línea de comandos
 	flag.Parse()
 
