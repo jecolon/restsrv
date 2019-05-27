@@ -31,9 +31,18 @@ func initPosts() {
 }
 
 func main() {
-	initPosts()
+	// Preparamos el paquete post.
+	if err := post.Init(); err != nil {
+		log.Fatalf("error preparando paquete post: %v", err)
+	}
+
 	// Opciones de la línea de comandos
 	flag.Parse()
+
+	// Usamos localhost si estamos en modo dev.
+	if *dev {
+		*puerto = "127.0.0.1" + *puerto
+	}
 
 	// Creamos un Server con ajustes de seguridad.
 	srv := &http.Server{
@@ -43,8 +52,6 @@ func main() {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1 MiB
 	}
-	// Aseguramos limpiar los recursos usados por el paquete post al hacer Shutdown.
-	srv.RegisterOnShutdown(post.Shutdown)
 
 	// Definimos rutas.
 	http.Handle("/", http.FileServer(http.Dir(*webroot)))
