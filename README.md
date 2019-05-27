@@ -27,3 +27,11 @@ tls/prod instead. (default: false)
 * -p [port] : Specifies the IP address and port to listen on. (default: ":8443")
 * -h or -? : Show usage information.
 
+## post package DB scripts
+
+Since v0.3.0 of the github.com/jecolon/post package, SQLite3 is used for persistence of posts in the file posts.db.
+The file will be created at the project root of the server (outside the webroot for security) and the following scripts are
+provided for testing and maintenace.
+
+* dbreset.sh: Drops the post table, leaving the DB empty.
+* dbfill.sh: Creates post table if necessary and inserts 10 posts for testing.
